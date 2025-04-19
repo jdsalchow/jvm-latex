@@ -1,4 +1,4 @@
-FROM eclipse-temurin:22-jre
+FROM eclipse-temurin:24-jre
 USER root
 RUN apt update && \
     apt install -y libpod2-base-perl && \
