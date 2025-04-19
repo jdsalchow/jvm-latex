@@ -7,6 +7,5 @@ RUN apt update && \
     TINYTEX_DIR=/opt ./install-bin-unix.sh && \
     /root/bin/tlmgr install soul xtab pgf fancyhdr babel-german koma-script datetime marvosym fmtcount bookmark courier && \
     ln -s /opt/.TinyTeX/bin/*/* /usr/local/bin/ && \
-    apt remove --purge -y libgdbm-compat4 libgdbm6 libperl5.34 netbase perl perl-modules-5.34 && \
+    apt remove --purge -y libgdbm-compat4t64 libgdbm6t64 libperl5.38t64 netbase perl perl-base && \
     rm -r /root/tmp
-
