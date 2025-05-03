@@ -18,25 +18,46 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
-      
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: jdsalchow/jvm-latex
-          tags: |
-            # Tag as release version if release event
-            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
-          
-            # Tag as 'main' and 'main-<shortsha>' if pushing to main
-            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
-            type=sha,prefix=main-,format=short,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Set Docker image tags
+        id: docker_tags
+        run: |
+          # Initialize tags array
+          TAGS=()
+
+          # Set image name
+          IMAGE_NAME="jdsalchow/jvm-latex"
+
+          # Tag as release version if it's a release event
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            # Remove 'v' prefix if present
+            VERSION="${VERSION#v}"
+            TAGS+=("${IMAGE_NAME}:${VERSION}")
+
+            # Also add the tag reference
+            if [[ -n "${{ github.ref_name }}" ]]; then
+              TAGS+=("${IMAGE_NAME}:${{ github.ref_name }}")
+            fi
+          fi
+
+          # Tag as 'main' and 'main-<shortsha>' if pushing to main
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            TAGS+=("${IMAGE_NAME}:main")
+            TAGS+=("${IMAGE_NAME}:main-${GITHUB_SHA::7}")
+          fi
+
+          # Join tags with comma for output
+          echo "tags=$(IFS=,; echo "${TAGS[*]}")" >> $GITHUB_OUTPUT
+
+          # Print tags for debugging
+          echo "Generated tags: ${TAGS[*]}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -50,5 +71,8 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.docker_tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.repository.updated_at }}
